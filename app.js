@@ -355,6 +355,7 @@ function saveAppSettings() {
 }
 
 // **ONLY CHANGED SECTION: REAL SYNC IMPLEMENTATION**
+// Replace the simulation syncData() with real API calls
 async function syncData() {
   if (!AppState.syncState.isOnline) return;
 
@@ -380,7 +381,8 @@ async function syncData() {
     });
 
     if (!response.ok) {
-      throw new Error(`Sync failed: ${response.status} ${response.statusText}`);
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new Error(`Sync failed: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const serverData = await response.json();
@@ -420,7 +422,12 @@ async function syncData() {
     AppState.syncState.status = 'error';
     updateSyncStatus();
     addSyncLogEntry(`Sync error: ${error.message}`, 'error');
-    throw error;
+    
+    // Don't re-throw error for auto-sync to prevent continuous failures
+    if (!syncData.isManualSync) {
+      return; // Silent failure for auto-sync
+    }
+    throw error; // Re-throw for manual sync
   }
 }
 
@@ -933,7 +940,10 @@ function handleTradeSubmission(e) {
   
   // Trigger sync after adding trade
   if (AppState.syncState.isOnline) {
-    setTimeout(syncData, 1000);
+    setTimeout(() => {
+      syncData.isManualSync = false;
+      syncData();
+    }, 1000);
   }
 }
 
@@ -1473,7 +1483,10 @@ function deleteTrade(tradeId) {
       
       // Trigger sync after deletion
       if (AppState.syncState.isOnline) {
-        setTimeout(syncData, 1000);
+        setTimeout(() => {
+          syncData.isManualSync = false;
+          syncData();
+        }, 1000);
       }
     }
   }
@@ -1566,6 +1579,7 @@ function loadSyncHistory() {
   container.innerHTML = html;
 }
 
+// **ENHANCED forceSync with better error handling**
 async function forceSync() {
   if (!AppState.syncState.isOnline) {
     showToast('No internet connection', 'error');
@@ -1577,15 +1591,17 @@ async function forceSync() {
   updateSyncStatus();
   
   try {
+    syncData.isManualSync = true; // Mark as manual sync
     await syncData();
     showToast('Sync completed successfully!', 'success');
     addSyncLogEntry('Manual sync completed', 'success');
   } catch (error) {
-    console.error('Sync failed:', error);
-    showToast('Sync failed. Please try again.', 'error');
-    addSyncLogEntry(`Sync failed: ${error.message}`, 'error');
+    console.error('Manual sync failed:', error);
+    showToast(`Sync failed: ${error.message}`, 'error');
+    addSyncLogEntry(`Manual sync failed: ${error.message}`, 'error');
     AppState.syncState.status = 'error';
   } finally {
+    // ALWAYS hide loading overlay, regardless of success or failure
     hideLoadingOverlay();
     updateSyncStatus();
   }
@@ -1634,6 +1650,13 @@ function setupSyncConfigForm() {
     AppConfig.syncInterval = parseInt(document.getElementById('sync-interval').value) * 1000;
     
     saveAppSettings();
+    
+    // Restart auto sync with new settings
+    stopAutoSync();
+    if (AppState.syncState.isOnline) {
+      startAutoSync();
+    }
+    
     showToast('Sync configuration saved!', 'success');
     addSyncLogEntry('Sync configuration updated', 'info');
   });
@@ -1812,6 +1835,9 @@ function showToast(message, type = 'info') {
 }
 
 function showLoadingOverlay(message) {
+  // Remove any existing overlays first
+  hideLoadingOverlay();
+  
   const overlay = document.createElement('div');
   overlay.id = 'loading-overlay';
   overlay.style.cssText = `
@@ -1843,9 +1869,16 @@ function hideLoadingOverlay() {
   if (overlay) {
     overlay.remove();
   }
+  
+  // Also ensure any stuck overlays are removed
+  document.querySelectorAll('[id*="loading"]').forEach(el => {
+    if (el.style.position === 'fixed') {
+      el.remove();
+    }
+  });
 }
 
-// Auto-sync functionality
+// Auto-sync functionality with better error handling
 let autoSyncInterval;
 
 function startAutoSync() {
@@ -1856,9 +1889,13 @@ function startAutoSync() {
   autoSyncInterval = setInterval(async () => {
     if (AppState.syncState.isOnline && AppState.syncState.status !== 'syncing') {
       try {
+        syncData.isManualSync = false; // Mark as auto-sync
         await syncData();
       } catch (error) {
-        console.error('Auto sync failed:', error);
+        console.error('Auto sync failed (silent):', error);
+        // Don't show error toast for auto-sync failures
+        AppState.syncState.status = 'idle'; // Reset status
+        updateSyncStatus();
       }
     }
   }, AppConfig.syncInterval);
@@ -1882,7 +1919,10 @@ window.addEventListener('online', () => {
   startAutoSync();
   
   // Trigger sync when coming back online
-  setTimeout(syncData, 2000);
+  setTimeout(() => {
+    syncData.isManualSync = false;
+    syncData();
+  }, 2000);
 });
 
 window.addEventListener('offline', () => {
@@ -1927,7 +1967,10 @@ document.addEventListener('DOMContentLoaded', function() {
   if (AppState.syncState.isOnline) {
     startAutoSync();
     // Initial sync after 3 seconds
-    setTimeout(syncData, 3000);
+    setTimeout(() => {
+      syncData.isManualSync = false;
+      syncData();
+    }, 3000);
   }
   
   AppState.isInitialized = true;
