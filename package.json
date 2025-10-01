@@ -1,0 +1,29 @@
+{
+  "name": "trading-journal-server",
+  "version": "1.0.0",
+  "description": "Sync server for trading journal application",
+  "main": "trading-journal-server.js",
+  "scripts": {
+    "start": "node trading-journal-server.js",
+    "dev": "nodemon trading-journal-server.js",
+    "test": "node test-server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "trading",
+    "journal",
+    "sync",
+    "api",
+    "express"
+  ],
+  "author": "Trading Journal",
+  "license": "MIT"
+}

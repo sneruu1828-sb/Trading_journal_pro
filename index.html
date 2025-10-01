@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Journal Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Navigation Header -->
+        <header class="nav-header">
+            <div class="nav-brand">
+                <h1>Trading Journal Pro</h1>
+                <div class="sync-indicator" id="sync-indicator">
+                    <span class="sync-status" id="sync-status">Idle</span>
+                    <div class="last-sync" id="last-sync">Last sync: Never</div>
+                </div>
+            </div>
+            <nav class="main-nav">
+                <button class="nav-btn active" data-section="dashboard">Dashboard</button>
+                <button class="nav-btn" data-section="add-trade">Add Trade</button>
+                <button class="nav-btn" data-section="strategies">Strategies</button>
+                <button class="nav-btn" data-section="calendar">Calendar</button>
+                <button class="nav-btn" data-section="analytics">Analytics</button>
+                <button class="nav-btn" data-section="history">History</button>
+                <button class="nav-btn" data-section="sync">Sync</button>
+            </nav>
+            <div class="header-controls">
+                <div class="connection-status" id="connection-status">
+                    <span class="connection-dot" id="connection-dot"></span>
+                    <span id="connection-text">Online</span>
+                </div>
+                <div class="account-toggle">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="account-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="account-label">Demo</span>
+                </div>
+                <button class="btn btn--sm btn--primary" onclick="forceSync()" id="sync-btn">Sync Now</button>
+            </div>
+        </header>
+
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="section active">
+            <div class="container">
+                <div class="dashboard-header">
+                    <h2>Trading Dashboard</h2>
+                    <div class="quick-actions">
+                        <button class="btn btn--primary" onclick="showSection('add-trade')">Add Trade</button>
+                        <button class="btn btn--outline" onclick="showSection('strategies')">Strategies</button>
+                        <button class="btn btn--outline" onclick="forceSync()">Sync Now</button>
+                    </div>
+                </div>
+                
+                <div class="dashboard-grid">
+                    <div class="metric-card">
+                        <h3>Total P&L</h3>
+                        <div class="metric-value" id="total-pnl">$0</div>
+                        <div class="metric-change" id="pnl-change">+0%</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Win Rate</h3>
+                        <div class="metric-value" id="win-rate">0%</div>
+                        <div class="metric-change" id="win-rate-trades">0 trades</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Profit Factor</h3>
+                        <div class="metric-value" id="profit-factor">0.00</div>
+                        <div class="metric-change" id="expectancy">$0 exp.</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Max Drawdown</h3>
+                        <div class="metric-value" id="max-drawdown">$0</div>
+                        <div class="metric-change" id="open-trades">0 open</div>
+                    </div>
+                </div>
+
+                <div class="dashboard-charts">
+                    <div class="chart-card">
+                        <h3>Equity Curve</h3>
+                        <div class="chart-container" style="height: 300px; position: relative;">
+                            <canvas id="equity-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Monthly Performance</h3>
+                        <div class="chart-container" style="height: 300px; position: relative;">
+                            <canvas id="monthly-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-trades">
+                    <div class="section-header">
+                        <h3>Recent Trades</h3>
+                        <button class="btn btn--outline" onclick="showSection('history')">View All</button>
+                    </div>
+                    <div class="trades-table" id="recent-trades-table">
+                        <!-- Recent trades will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Add Trade Section -->
+        <section id="add-trade" class="section">
+            <div class="container">
+                <h2>Add New Trade</h2>
+                <form class="trade-form" id="trade-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Strategy</label>
+                            <select class="form-control" id="trade-strategy" required>
+                                <option value="">Select Strategy</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Account Type</label>
+                            <select class="form-control" id="trade-account-type" required>
+                                <option value="demo">Demo</option>
+                                <option value="real">Real</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Symbol</label>
+                            <input type="text" class="form-control" id="trade-symbol" placeholder="EURUSD" required>
+                            <div class="autocomplete-dropdown" id="symbol-dropdown"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Direction</label>
+                            <select class="form-control" id="trade-direction" required>
+                                <option value="long">Long</option>
+                                <option value="short">Short</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" class="form-control" id="trade-quantity" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Entry Price</label>
+                            <input type="number" class="form-control" id="trade-entry-price" step="0.00001" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Stop Loss</label>
+                            <input type="number" class="form-control" id="trade-stop-loss" step="0.00001">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Take Profit</label>
+                            <input type="number" class="form-control" id="trade-take-profit" step="0.00001">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <select class="form-control" id="trade-status">
+                                <option value="open">Open</option>
+                                <option value="closed">Closed</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row" id="exit-fields" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Exit Price</label>
+                            <input type="number" class="form-control" id="trade-exit-price" step="0.00001">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Exit Date</label>
+                            <input type="date" class="form-control" id="trade-exit-date">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Exit Time</label>
+                            <input type="time" class="form-control" id="trade-exit-time">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Entry Date</label>
+                            <input type="date" class="form-control" id="trade-entry-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Entry Time</label>
+                            <input type="time" class="form-control" id="trade-entry-time" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Commission</label>
+                            <input type="number" class="form-control" id="trade-commission" step="0.01" value="0">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Tags (comma separated)</label>
+                            <input type="text" class="form-control" id="trade-tags" placeholder="breakout, volume-confirmation">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="trade-notes" rows="4" placeholder="Detailed trade analysis and observations..."></textarea>
+                    </div>
+
+                    <div class="risk-reward-display" id="risk-reward-display" style="display: none;">
+                        <div class="rr-metric">
+                            <span class="rr-label">Risk:</span>
+                            <span class="rr-value" id="trade-risk">$0</span>
+                        </div>
+                        <div class="rr-metric">
+                            <span class="rr-label">Reward:</span>
+                            <span class="rr-value" id="trade-reward">$0</span>
+                        </div>
+                        <div class="rr-metric">
+                            <span class="rr-label">R:R Ratio:</span>
+                            <span class="rr-value" id="trade-rr-ratio">1:0</span>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn--primary">Add Trade</button>
+                        <button type="button" class="btn btn--secondary" onclick="saveDraft()">Save Draft</button>
+                        <button type="button" class="btn btn--outline" onclick="resetTradeForm()">Reset</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Strategies Section -->
+        <section id="strategies" class="section">
+            <div class="container">
+                <div class="section-header">
+                    <h2>Trading Strategies</h2>
+                    <div class="strategy-actions">
+                        <button class="btn btn--primary" onclick="showAddStrategyModal()">Add Strategy</button>
+                        <button class="btn btn--outline" onclick="exportStrategies()">Export</button>
+                    </div>
+                </div>
+                
+                <div class="strategies-grid" id="strategies-grid">
+                    <!-- Strategies will be populated here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Calendar Section -->
+        <section id="calendar" class="section">
+            <div class="container">
+                <div class="calendar-header">
+                    <h2>Trading Calendar</h2>
+                    <div class="calendar-controls">
+                        <div class="calendar-nav">
+                            <button class="btn btn--outline" onclick="previousMonth()">&lt;</button>
+                            <span id="calendar-month-year">October 2024</span>
+                            <button class="btn btn--outline" onclick="nextMonth()">&gt;</button>
+                        </div>
+                        <button class="btn btn--outline" onclick="exportCalendar()">Export</button>
+                    </div>
+                </div>
+                
+                <div class="calendar-summary" id="calendar-summary">
+                    <!-- Monthly summary will be populated here -->
+                </div>
+                
+                <div class="calendar-grid" id="calendar-grid">
+                    <!-- Calendar will be populated here -->
+                </div>
+                
+                <div class="calendar-legend">
+                    <div class="legend-item">
+                        <div class="legend-color profit"></div>
+                        <span>Profitable Day</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color loss"></div>
+                        <span>Loss Day</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color neutral"></div>
+                        <span>No Activity</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color breakeven"></div>
+                        <span>Breakeven</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Analytics Section -->
+        <section id="analytics" class="section">
+            <div class="container">
+                <div class="analytics-header">
+                    <h2>Performance Analytics</h2>
+                    <div class="analytics-toggle">
+                        <button class="btn btn--primary active" data-account="demo">Demo</button>
+                        <button class="btn btn--outline" data-account="real">Real</button>
+                        <button class="btn btn--outline" data-account="comparison">Comparison</button>
+                    </div>
+                </div>
+
+                <div class="analytics-content" id="analytics-content">
+                    <div class="analytics-metrics">
+                        <div class="metric-card">
+                            <h3>Total P&L</h3>
+                            <div class="metric-value" id="analytics-pnl">$0</div>
+                        </div>
+                        <div class="metric-card">
+                            <h3>Win Rate</h3>
+                            <div class="metric-value" id="analytics-winrate">0%</div>
+                        </div>
+                        <div class="metric-card">
+                            <h3>Profit Factor</h3>
+                            <div class="metric-value" id="analytics-profit-factor">0</div>
+                        </div>
+                        <div class="metric-card">
+                            <h3>Sharpe Ratio</h3>
+                            <div class="metric-value" id="analytics-sharpe">0.00</div>
+                        </div>
+                        <div class="metric-card">
+                            <h3>Max Drawdown</h3>
+                            <div class="metric-value" id="analytics-drawdown">$0</div>
+                        </div>
+                        <div class="metric-card">
+                            <h3>Expectancy</h3>
+                            <div class="metric-value" id="analytics-expectancy">$0</div>
+                        </div>
+                    </div>
+
+                    <div class="analytics-charts">
+                        <div class="chart-card">
+                            <h3>Equity Curve</h3>
+                            <div class="chart-container" style="height: 300px; position: relative;">
+                                <canvas id="analytics-equity-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h3>Strategy Performance</h3>
+                            <div class="chart-container" style="height: 300px; position: relative;">
+                                <canvas id="analytics-strategy-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h3>Monthly Returns</h3>
+                            <div class="chart-container" style="height: 300px; position: relative;">
+                                <canvas id="analytics-monthly-chart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card">
+                            <h3>Risk Analysis</h3>
+                            <div class="chart-container" style="height: 300px; position: relative;">
+                                <canvas id="analytics-risk-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Trade History Section -->
+        <section id="history" class="section">
+            <div class="container">
+                <div class="history-header">
+                    <h2>Trade History</h2>
+                    <div class="history-controls">
+                        <div class="history-filters">
+                            <select class="form-control" id="filter-strategy">
+                                <option value="">All Strategies</option>
+                            </select>
+                            <select class="form-control" id="filter-symbol">
+                                <option value="">All Symbols</option>
+                            </select>
+                            <select class="form-control" id="filter-status">
+                                <option value="">All Status</option>
+                                <option value="open">Open</option>
+                                <option value="closed">Closed</option>
+                            </select>
+                            <input type="text" class="form-control" id="search-trades" placeholder="Search trades...">
+                        </div>
+                        <div class="history-actions">
+                            <button class="btn btn--outline" onclick="exportTrades()">Export CSV</button>
+                            <button class="btn btn--outline" onclick="importTrades()">Import</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="trades-table" id="trades-table">
+                    <!-- Trade history table will be populated here -->
+                </div>
+                
+                <div class="pagination" id="pagination">
+                    <!-- Pagination will be populated here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Sync Settings Section -->
+        <section id="sync" class="section">
+            <div class="container">
+                <h2>Sync & Data Management</h2>
+                
+                <div class="sync-dashboard">
+                    <div class="sync-status-card">
+                        <h3>Sync Status</h3>
+                        <div class="sync-info">
+                            <div class="sync-item">
+                                <span class="sync-label">Status:</span>
+                                <span class="sync-value" id="sync-dashboard-status">Idle</span>
+                            </div>
+                            <div class="sync-item">
+                                <span class="sync-label">Last Sync:</span>
+                                <span class="sync-value" id="sync-dashboard-time">Never</span>
+                            </div>
+                            <div class="sync-item">
+                                <span class="sync-label">Pending Changes:</span>
+                                <span class="sync-value" id="pending-changes">0</span>
+                            </div>
+                            <div class="sync-item">
+                                <span class="sync-label">Device ID:</span>
+                                <span class="sync-value" id="device-id">device-12345</span>
+                            </div>
+                        </div>
+                        <div class="sync-actions">
+                            <button class="btn btn--primary" onclick="forceSync()">Sync Now</button>
+                            <button class="btn btn--outline" onclick="showSyncSettings()">Settings</button>
+                        </div>
+                    </div>
+                    
+                    <div class="sync-config-card">
+                        <h3>Server Configuration</h3>
+                        <form id="sync-config-form">
+                            <div class="form-group">
+                                <label class="form-label">Server URL</label>
+                                <input type="url" class="form-control" id="server-url" value="http://localhost:3001">
+                                <small class="form-help">Default: http://localhost:3001</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Auth Token</label>
+                                <input type="password" class="form-control" id="auth-token" value="demo-user-token">
+                                <small class="form-help">Default: demo-user-token</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Auto Sync Interval (seconds)</label>
+                                <input type="number" class="form-control" id="sync-interval" min="10" value="30">
+                            </div>
+                            <button type="submit" class="btn btn--primary">Save Configuration</button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="data-management">
+                    <h3>Data Management</h3>
+                    <div class="data-actions">
+                        <button class="btn btn--outline" onclick="exportAllData()">Export All Data</button>
+                        <button class="btn btn--outline" onclick="importData()">Import Data</button>
+                        <button class="btn btn--outline" onclick="createBackup()">Create Backup</button>
+                        <button class="btn btn--outline" onclick="restoreBackup()">Restore Backup</button>
+                        <button class="btn btn--secondary" onclick="clearAllData()">Clear All Data</button>
+                    </div>
+                </div>
+                
+                <div class="sync-history">
+                    <h3>Sync History</h3>
+                    <div class="sync-log" id="sync-log">
+                        <!-- Sync history will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal hidden" id="add-strategy-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Strategy</h3>
+                <button class="modal-close" onclick="hideAddStrategyModal()">&times;</button>
+            </div>
+            <form id="strategy-form">
+                <div class="form-group">
+                    <label class="form-label">Strategy Name</label>
+                    <input type="text" class="form-control" id="strategy-name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select class="form-control" id="strategy-category" required>
+                        <option value="Momentum">Momentum</option>
+                        <option value="Mean Reversion">Mean Reversion</option>
+                        <option value="Breakout">Breakout</option>
+                        <option value="Swing">Swing</option>
+                        <option value="Scalping">Scalping</option>
+                        <option value="Day Trading">Day Trading</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" id="strategy-description" rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Trading Rules</label>
+                    <textarea class="form-control" id="strategy-rules" rows="4" required></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Default Risk %</label>
+                        <input type="number" class="form-control" id="strategy-default-risk" step="0.1" value="2" required>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn--primary">Add Strategy</button>
+                    <button type="button" class="btn btn--secondary" onclick="hideAddStrategyModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal hidden" id="trade-detail-modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>Trade Details</h3>
+                <button class="modal-close" onclick="hideTradeDetailModal()">&times;</button>
+            </div>
+            <div class="trade-detail-content" id="trade-detail-content">
+                <!-- Trade details will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <div class="modal hidden" id="conflict-resolution-modal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3>Resolve Data Conflicts</h3>
+                <button class="modal-close" onclick="hideConflictModal()">&times;</button>
+            </div>
+            <div class="conflict-content" id="conflict-content">
+                <!-- Conflict resolution will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loading-overlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <div class="loading-text">Syncing data...</div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast hidden" id="toast">
+        <div class="toast-content">
+            <span class="toast-message" id="toast-message"></span>
+            <button class="toast-close" onclick="hideToast()">&times;</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
