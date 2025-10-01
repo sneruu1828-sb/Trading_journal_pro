@@ -2,7 +2,7 @@
 
 // Global configuration
 const AppConfig = {
-  serverUrl: 'http://localhost:3001',
+  serverUrl: 'https://trading-journal-pro-3gwm.onrender.com',
   authToken: 'demo-user-token',
   syncInterval: 30000,
   retryAttempts: 3,
